@@ -13,6 +13,7 @@ namespace chat
         private TcpClient client;
         private NetworkStream stream;
         private string username;
+        private string selectedUser;
 
         public MainWindow()
         {
@@ -31,7 +32,16 @@ namespace chat
                 return;
             }
 
-            client = new TcpClient("192.168.5.6", 65432); // Replace with your server's IP address
+            // Ask for a port number
+            string portInput = Interaction.InputBox("Enter a port number:", "Port", "8080", -1, -1);
+            if (!int.TryParse(portInput, out int port))
+            {
+                MessageBox.Show("Invalid port number.");
+                Application.Current.Shutdown();
+                return;
+            }
+
+            client = new TcpClient("127.0.0.1", port); // Use localhost
             stream = client.GetStream();
 
             // Send the username to the server
@@ -69,16 +79,13 @@ namespace chat
 
         private void HandleServerResponse(string response)
         {
-            // Check if the response is a list of users or a message
             if (response.StartsWith("/users:"))
             {
-                // This means the server is sending back the list of users
                 var users = response.Substring(7).Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 RefreshUserList(users);
             }
             else
             {
-                // Regular chat message
                 DisplayMessage(response);
             }
         }
@@ -87,7 +94,7 @@ namespace chat
         {
             string time = DateTime.Now.ToString("HH:mm");
             lbChat.Items.Add($"({time}) {message}");
-            lbChat.ScrollIntoView(lbChat.Items[lbChat.Items.Count - 1]); // Auto-scroll to the bottom
+            lbChat.ScrollIntoView(lbChat.Items[lbChat.Items.Count - 1]);
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
@@ -95,21 +102,27 @@ namespace chat
             string message = tbxMessage.Text.Trim();
             if (!string.IsNullOrWhiteSpace(message))
             {
-                // Prepend the username to the message
-                string fullMessage = $"{username}: {message}";
+                string fullMessage;
+                if (!string.IsNullOrEmpty(selectedUser))
+                {
+                    // Send a private message
+                    fullMessage = $"@{selectedUser}: {message}";
+                }
+                else
+                {
+                    // Public message
+                    fullMessage = $"{username}: {message}";
+                }
+
                 byte[] data = Encoding.UTF8.GetBytes(fullMessage);
-
-                // Display the message immediately in the chat
                 DisplayMessage(fullMessage);
-
                 stream.Write(data, 0, data.Length);
-                tbxMessage.Clear(); // Clear the textbox after sending
+                tbxMessage.Clear();
             }
         }
 
         private void btnRefresh_Click(object sender, RoutedEventArgs e)
         {
-            // Request connected users from the server
             byte[] requestData = Encoding.UTF8.GetBytes("/users");
             stream.Write(requestData, 0, requestData.Length);
         }
@@ -120,6 +133,14 @@ namespace chat
             foreach (var user in users)
             {
                 lbUsers.Items.Add(user);
+            }
+        }
+
+        private void lbUsers_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (lbUsers.SelectedItem != null)
+            {
+                selectedUser = lbUsers.SelectedItem.ToString().Split(' ')[0]; // Get username from selected item
             }
         }
     }

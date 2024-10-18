@@ -17,7 +17,7 @@
         </Grid.RowDefinitions>
 
         <ListBox x:Name="lbChat"></ListBox>
-        <ListBox x:Name="lbUsers" Grid.Column="1" Grid.RowSpan="2"></ListBox>
+        <ListBox x:Name="lbUsers" Grid.Column="1" Grid.RowSpan="2" SelectionChanged="lbUsers_SelectionChanged"></ListBox>
         <StackPanel Grid.Row="1" Orientation="Horizontal">
             <TextBox x:Name="tbxMessage" Width="430px" Height="30" HorizontalAlignment="Left" FontSize="14" Margin="10"></TextBox>
             <Button x:Name="btnSend" Height="30" Margin="10" Padding="10 0" Click="btnSend_Click">Küldés</Button>

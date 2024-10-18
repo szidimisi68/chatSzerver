@@ -3,10 +3,9 @@ import threading
 
 clients = {}
 
-
 def handle_client(conn, addr):
     print(f'Connected by {addr}')
-    username = conn.recv(1024).decode()  # Receive the username from the client
+    username = conn.recv(1024).decode()
     clients[conn] = (username, addr)
 
     while True:
@@ -25,11 +24,14 @@ def handle_client(conn, addr):
                 conn.sendall(response.encode())
                 continue
 
-            # Forward the formatted message to all other clients
-            formatted_message = f"{username}: {message}"
-            for client in clients:
-                if client != conn:  # Don't send back to the sender
-                    client.sendall(formatted_message.encode())
+            # Check for private messages
+            if message.startswith('@'):
+                target_username, msg = message.split(': ', 1)[0][1:], message.split(': ', 1)[1]
+                send_private_message(target_username, f"{username} (private): {msg}")
+            else:
+                # Broadcast the message to all other clients
+                formatted_message = f"{username}: {message}"
+                broadcast(formatted_message, conn)
 
         except ConnectionResetError:
             break
@@ -38,12 +40,21 @@ def handle_client(conn, addr):
     del clients[conn]
     conn.close()
 
-
 def list_connected_users():
-    return [f"{username} ({addr[0]})" for conn, (username, addr) in clients.items()]
+    return [username for username, (username, _) in clients.items()]
 
+def send_private_message(target_username, message):
+    for client, (username, _) in clients.items():
+        if username == target_username:
+            client.sendall(message.encode())
+            break
 
-def start_server(host='0.0.0.0', port=65432):
+def broadcast(message, sender_conn):
+    for client in clients:
+        if client != sender_conn:
+            client.sendall(message.encode())
+
+def start_server(host='0.0.0.0', port=8080):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen(5)
@@ -53,6 +64,5 @@ def start_server(host='0.0.0.0', port=65432):
         conn, addr = server_socket.accept()
         threading.Thread(target=handle_client, args=(conn, addr)).start()
 
-
 if __name__ == "__main__":
-    start_server()
+    start_server()  # Start the server on port 8080
